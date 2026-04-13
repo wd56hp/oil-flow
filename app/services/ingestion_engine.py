@@ -35,16 +35,20 @@ can call :func:`ingest_trade_flow_records`; only the record contents vary.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Mapping, Sequence, Set
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Sequence
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import IngestionRun, TradeFlow, TradeFlowRevision
 from app.schemas.trade_flow import TradeFlowRecord
+
+logger = logging.getLogger(__name__)
 
 STATUS_RUNNING = "running"
 STATUS_COMPLETED = "completed"
@@ -110,12 +114,16 @@ def ingest_trade_flow_records(
     *,
     source_hint: str | None = None,
     commit: bool = True,
+    raw_rows: Sequence[Mapping[str, Any]] | None = None,
+    expected_raw_columns: Set[str] | None = None,
 ) -> IngestionStats:
     """
     Process normalized records: insert new keys, skip identical measures, revise changed measures.
 
     :param source_hint: Optional operator-facing label (e.g. ``"eia"``).
     :param commit: If ``False``, only ``flush`` (for embedding in a larger transaction).
+    :param raw_rows: Optional pre-normalization dict rows for schema fingerprint / column DQ.
+    :param expected_raw_columns: If set (with ``raw_rows``), flags missing and unexpected columns.
     """
     started = datetime.now(timezone.utc)
     run = IngestionRun(
@@ -128,6 +136,39 @@ def ingest_trade_flow_records(
         started_at=started,
     )
     session.add(run)
+    session.flush()
+
+    dq_source = records[0].source if records else (source_hint or "unknown")
+    dq_dataset = records[0].dataset if records else "unknown"
+
+    if raw_rows is not None and len(raw_rows) > 0:
+        try:
+            from app.services import data_quality
+
+            data_quality.evaluate_raw_schema(
+                session,
+                source=dq_source,
+                dataset=dq_dataset,
+                rows=raw_rows,
+                expected_columns=expected_raw_columns,
+                ingestion_run_id=run.id,
+            )
+        except Exception:
+            logger.exception("Data quality raw schema evaluation failed (non-fatal)")
+    if records:
+        try:
+            from app.services import data_quality
+
+            data_quality.evaluate_normalized_records(
+                session,
+                source=dq_source,
+                dataset=dq_dataset,
+                records=records,
+                ingestion_run_id=run.id,
+            )
+        except Exception:
+            logger.exception("Data quality normalized evaluation failed (non-fatal)")
+
     session.flush()
 
     inserted = revised = unchanged = 0

@@ -38,3 +38,6 @@ class IngestionRun(Base):
     revisions: Mapped[list["TradeFlowRevision"]] = relationship(
         "TradeFlowRevision", back_populates="ingestion_run"
     )
+    data_quality_issues: Mapped[list["DataQualityIssue"]] = relationship(
+        "DataQualityIssue", back_populates="ingestion_run"
+    )

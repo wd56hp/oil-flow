@@ -17,6 +17,17 @@ DEFAULT_BASE_URL = "https://api.eia.gov/v2"
 MAX_PAGE_LENGTH = 5000
 
 
+def _eia_warning_is_pagination_cap(w: Mapping[str, Any]) -> bool:
+    """True for EIA's routine '5000 row JSON cap' notice when using offset/length paging."""
+    if not isinstance(w, dict):
+        return False
+    hint = str(w.get("warning") or "").lower()
+    detail = str(w.get("description") or "").lower()
+    if "incomplete" not in hint:
+        return False
+    return "5000" in detail and "json" in detail
+
+
 def build_query_params(
     *,
     api_key: str,
@@ -134,11 +145,18 @@ class EIAClient:
         if "warnings" in payload and payload["warnings"]:
             for w in payload["warnings"]:
                 if isinstance(w, dict):
-                    logger.warning(
-                        "EIA warning: %s — %s",
-                        w.get("warning"),
-                        w.get("description"),
-                    )
+                    if _eia_warning_is_pagination_cap(w):
+                        logger.debug(
+                            "EIA notice (expected under pagination): %s — %s",
+                            w.get("warning"),
+                            w.get("description"),
+                        )
+                    else:
+                        logger.warning(
+                            "EIA warning: %s — %s",
+                            w.get("warning"),
+                            w.get("description"),
+                        )
                 else:
                     logger.warning("EIA warning: %s", w)
 

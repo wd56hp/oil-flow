@@ -35,7 +35,9 @@ def db_session(test_engine) -> Session:
     with test_engine.connect() as conn:
         conn.execute(text("DELETE FROM trade_flow_revisions"))
         conn.execute(text("DELETE FROM trade_flows"))
+        conn.execute(text("DELETE FROM data_quality_issues"))
         conn.execute(text("DELETE FROM ingestion_runs"))
+        conn.execute(text("DELETE FROM schema_fingerprints"))
         conn.commit()
 
     SessionLocal = sessionmaker(bind=test_engine, expire_on_commit=False)

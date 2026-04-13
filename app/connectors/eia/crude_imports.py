@@ -21,6 +21,26 @@ CRUDE_IMPORTS_DATA_ROUTE = "crude-oil-imports/data/"
 
 DEFAULT_DATA_FIELDS = ("quantity",)
 
+# Raw EIA rows: core keys + common v2 display/facet fields (avoids false raw_unexpected_column DQ).
+CRUDE_IMPORTS_EXPECTED_RAW_COLUMNS: frozenset[str] = frozenset(
+    {
+        "period",
+        "quantity",
+        "quantity-units",
+        "quantity_units",
+        "originId",
+        "originType",
+        "originName",
+        "originTypeName",
+        "destinationId",
+        "destinationType",
+        "destinationName",
+        "destinationTypeName",
+        "gradeId",
+        "gradeName",
+    }
+)
+
 
 def get_eia_client(api_key: str | None = None) -> EIAClient:
     key = api_key
