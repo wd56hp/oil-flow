@@ -1,0 +1,16 @@
+id,source,dataset,period_date,reporter_country,partner_country,commodity,flow_direction,quantity,quantity_unit,observed_at,eia_origin_id,eia_destination_id,eia_grade_id
+144,eia,crude-oil-imports,2025-08-01,US,CA,crude_oil:LSO,import,3672.000000000000000000,thousand barrels,2026-04-13T12:43:36.038021+00:00,CTY_CA,US,LSO
+143,eia,crude-oil-imports,2025-08-01,US,CA,crude_oil:HSW,import,729.000000000000000000,thousand barrels,2026-04-13T12:43:36.038021+00:00,CTY_CA,US,HSW
+142,eia,crude-oil-imports,2025-08-01,US,CA,crude_oil:HSO,import,86048.000000000000000000,thousand barrels,2026-04-13T12:43:36.038021+00:00,CTY_CA,US,HSO
+141,eia,crude-oil-imports,2025-08-01,US,CA,crude_oil:MED,import,22297.000000000000000000,thousand barrels,2026-04-13T12:43:36.038021+00:00,CTY_CA,US,MED
+140,eia,crude-oil-imports,2025-08-01,US,CA,crude_oil:LSW,import,2413.000000000000000000,thousand barrels,2026-04-13T12:43:36.038021+00:00,CTY_CA,US,LSW
+78,eia,crude-oil-imports,2025-07-01,US,CA,crude_oil:LSO,import,2360.000000000000000000,thousand barrels,2026-04-13T12:43:28.622580+00:00,CTY_CA,US,LSO
+77,eia,crude-oil-imports,2025-07-01,US,CA,crude_oil:HSW,import,611.000000000000000000,thousand barrels,2026-04-13T12:43:28.622580+00:00,CTY_CA,US,HSW
+76,eia,crude-oil-imports,2025-07-01,US,CA,crude_oil:MED,import,26374.000000000000000000,thousand barrels,2026-04-13T12:43:28.622580+00:00,CTY_CA,US,MED
+75,eia,crude-oil-imports,2025-07-01,US,CA,crude_oil:LSW,import,2460.000000000000000000,thousand barrels,2026-04-13T12:43:28.622580+00:00,CTY_CA,US,LSW
+74,eia,crude-oil-imports,2025-07-01,US,CA,crude_oil:HSO,import,94242.000000000000000000,thousand barrels,2026-04-13T12:43:28.622580+00:00,CTY_CA,US,HSO
+12,eia,crude-oil-imports,2025-06-01,US,CA,crude_oil:LSO,import,4291.000000000000000000,thousand barrels,2026-04-13T12:43:21.191917+00:00,CTY_CA,US,LSO
+11,eia,crude-oil-imports,2025-06-01,US,CA,crude_oil:HSW,import,761.000000000000000000,thousand barrels,2026-04-13T12:43:21.191917+00:00,CTY_CA,US,HSW
+10,eia,crude-oil-imports,2025-06-01,US,CA,crude_oil:HSO,import,81736.000000000000000000,thousand barrels,2026-04-13T12:43:21.191917+00:00,CTY_CA,US,HSO
+9,eia,crude-oil-imports,2025-06-01,US,CA,crude_oil:MED,import,22429.000000000000000000,thousand barrels,2026-04-13T12:43:21.191917+00:00,CTY_CA,US,MED
+8,eia,crude-oil-imports,2025-06-01,US,CA,crude_oil:LSW,import,995.000000000000000000,thousand barrels,2026-04-13T12:43:21.191917+00:00,CTY_CA,US,LSW

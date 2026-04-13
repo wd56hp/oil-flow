@@ -27,3 +27,8 @@ starlette==1.0.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 uvicorn==0.44.0
+
+# --- Optional CLI (not on PyPI; install with your OS package manager) ---
+# jq — pipe JSON from curl into queries, e.g. curl -s ... | jq '.items[].period_date'
+#   Debian/Ubuntu: sudo apt install jq
+#   macOS: brew install jq
