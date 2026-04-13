@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 from datetime import date
 from io import StringIO
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import Select, and_, func, select
@@ -25,6 +26,14 @@ router = APIRouter(tags=["verification"])
 
 MAX_PAGE = 500
 CSV_MAX_ROWS = 10_000
+
+
+def _first(*values: Any) -> Any:
+    """Prefer leftmost non-None (explicit column names win over short aliases)."""
+    for v in values:
+        if v is not None:
+            return v
+    return None
 
 
 def _paginate(stmt: Select, session: Session, *, limit: int, offset: int) -> tuple[list, int]:
@@ -136,22 +145,32 @@ def list_trade_flows(
     session: Session = Depends(get_db),
     limit: int = Query(100, ge=1, le=MAX_PAGE),
     offset: int = Query(0, ge=0),
-    source: str | None = None,
-    dataset: str | None = None,
-    period_from: date | None = Query(None, description="Inclusive lower bound for period_date"),
-    period_to: date | None = Query(None, description="Inclusive upper bound for period_date"),
-    reporter_country: str | None = None,
-    partner_country: str | None = None,
+    source: str | None = Query(None, description="Upstream source id (e.g. eia)"),
     commodity: str | None = None,
+    # Date range on period_date (inclusive)
+    date_from: date | None = Query(None, description="Alias: inclusive start of period_date"),
+    date_to: date | None = Query(None, description="Alias: inclusive end of period_date"),
+    period_from: date | None = Query(
+        None, description="Inclusive lower bound for period_date (same as date_from)"
+    ),
+    period_to: date | None = Query(
+        None, description="Inclusive upper bound for period_date (same as date_to)"
+    ),
+    # Countries: short names match common inspection language
+    country: str | None = Query(None, description="Alias: reporter_country"),
+    partner: str | None = Query(None, description="Alias: partner_country"),
+    reporter_country: str | None = Query(None, description="Reporter / importer country code"),
+    partner_country: str | None = Query(None, description="Partner / origin country code"),
+    dataset: str | None = None,
     flow_direction: str | None = None,
 ) -> TradeFlowListResponse:
     stmt = _trade_flows_select(
         source=source,
         dataset=dataset,
-        period_from=period_from,
-        period_to=period_to,
-        reporter_country=reporter_country,
-        partner_country=partner_country,
+        period_from=_first(period_from, date_from),
+        period_to=_first(period_to, date_to),
+        reporter_country=_first(reporter_country, country),
+        partner_country=_first(partner_country, partner),
         commodity=commodity,
         flow_direction=flow_direction,
     )
@@ -170,22 +189,26 @@ def export_trade_flows_csv(
     limit: int = Query(5_000, ge=1, le=CSV_MAX_ROWS),
     offset: int = Query(0, ge=0),
     source: str | None = None,
-    dataset: str | None = None,
+    commodity: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     period_from: date | None = None,
     period_to: date | None = None,
+    country: str | None = None,
+    partner: str | None = None,
     reporter_country: str | None = None,
     partner_country: str | None = None,
-    commodity: str | None = None,
+    dataset: str | None = None,
     flow_direction: str | None = None,
 ) -> Response:
     """Same filters as GET /trade-flows; returns CSV (bounded by limit/offset)."""
     stmt = _trade_flows_select(
         source=source,
         dataset=dataset,
-        period_from=period_from,
-        period_to=period_to,
-        reporter_country=reporter_country,
-        partner_country=partner_country,
+        period_from=_first(period_from, date_from),
+        period_to=_first(period_to, date_to),
+        reporter_country=_first(reporter_country, country),
+        partner_country=_first(partner_country, partner),
         commodity=commodity,
         flow_direction=flow_direction,
     )

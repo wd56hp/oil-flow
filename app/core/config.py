@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     database_url: str
     eia_api_key: str | None = None
 
+    # IEA / licensed data services (optional until a concrete API is wired)
+    iea_api_key: str | None = None
+    iea_api_base_url: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

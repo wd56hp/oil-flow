@@ -125,16 +125,33 @@ JSON and CSV endpoints for table-first checks (same idea as querying in `psql`).
 
 **Pagination:** `limit` (default 100 for JSON lists), `offset`.
 
-**Filters for `/trade-flows` and `/trade-flows/export.csv`:** `source`, `dataset`, `period_from`, `period_to` (inclusive date range on `period_date`), `reporter_country`, `partner_country`, `commodity`, `flow_direction`. Omit a parameter to leave it unfiltered.
+**Filters for `/trade-flows` and `/trade-flows/export.csv` (all optional):**
+
+| Concept | Query parameters |
+|--------|-------------------|
+| Date range (inclusive, on `period_date`) | `date_from` & `date_to`, or `period_from` & `period_to` (same meaning; explicit names win if both are sent) |
+| Reporter country | `country` or `reporter_country` |
+| Partner country | `partner` or `partner_country` |
+| Commodity | `commodity` |
+| Source | `source` |
+| Extra (optional) | `dataset`, `flow_direction` |
 
 Examples:
 
 ```bash
 curl -s "http://localhost:8000/trade-flows?source=eia&limit=10" | jq .
-curl -s "http://localhost:8000/trade-flows/export.csv?source=eia&period_from=2024-01-01&period_to=2024-12-31" -o trade_flows.csv
+curl -s "http://localhost:8000/trade-flows?country=US&partner=AG&commodity=crude_oil:LSW" | jq .
+curl -s "http://localhost:8000/trade-flows/export.csv?source=eia&date_from=2024-01-01&date_to=2024-12-31" -o trade_flows.csv
 ```
 
 OpenAPI: `http://localhost:8000/docs`
+
+---
+
+## Connectors
+
+- **EIA** (`app/connectors/eia/`) — live API: fetch + normalize to `TradeFlowRecord`.
+- **IEA** (`app/connectors/iea/`) — **framework only**: table rows → `TradeFlowRecord` via `normalize_iea_table_rows`; optional `IEAClient` + `fetch_table_rows` when `IEA_API_BASE_URL` (and usually `IEA_API_KEY`) are set for licensed or future public endpoints. With no base URL, fetch returns an empty list so pipelines do not fail in dev/CI.
 
 ---
 
@@ -143,7 +160,7 @@ OpenAPI: `http://localhost:8000/docs`
 ```
 app/
   api/           # HTTP routes (health, verification API)
-  connectors/    # Source-specific fetch + normalize (e.g. EIA)
+  connectors/    # eia/, iea/ — fetch + normalize → TradeFlowRecord
   core/          # Settings, DB session
   models/        # SQLAlchemy ORM
   schemas/       # Pydantic: TradeFlowRecord, inspection DTOs, …

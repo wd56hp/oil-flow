@@ -66,6 +66,24 @@ class TestTradeFlowsFilters:
         assert r.json()["total"] == 1
         assert r.json()["items"][0]["period_date"] == "2024-06-01"
 
+    def test_country_and_partner_aliases_match_column_filters(self, client, db_session):
+        _add_trade_flow(db_session, source="eia", partner="AG")
+        _add_trade_flow(db_session, source="eia", partner="MX")
+
+        r = client.get("/trade-flows", params={"country": "US", "partner": "MX"})
+        assert r.status_code == 200
+        assert r.json()["total"] == 1
+        assert r.json()["items"][0]["partner_country"] == "MX"
+
+    def test_date_from_date_to_aliases(self, client, db_session):
+        _add_trade_flow(db_session, source="eia", period_date=date(2023, 1, 1))
+        r = client.get(
+            "/trade-flows",
+            params={"source": "eia", "date_from": "2024-01-01", "date_to": "2025-12-31"},
+        )
+        assert r.status_code == 200
+        assert r.json()["total"] == 0
+
 
 class TestTradeFlowsCsvExport:
     def test_export_csv_returns_header_and_rows(self, client, db_session):
@@ -81,6 +99,16 @@ class TestTradeFlowsCsvExport:
         assert lines[0].startswith("id,source,dataset,period_date")
         assert "eia" in lines[1]
         assert "thousand barrels" in lines[1]
+
+    def test_csv_export_accepts_alias_filters(self, client, db_session):
+        _add_trade_flow(db_session, source="eia", partner="BR")
+
+        r = client.get(
+            "/trade-flows/export.csv",
+            params={"source": "eia", "country": "US", "partner": "BR"},
+        )
+        assert r.status_code == 200
+        assert "BR" in r.text
 
 
 class TestRevisionsAndRuns:
