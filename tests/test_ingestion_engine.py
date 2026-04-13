@@ -25,6 +25,7 @@ class TestInsertNewRecords:
         assert stats.inserted == 1
         assert stats.revised == 0
         assert stats.unchanged == 0
+        assert stats.failed == 0
 
         stored = db_session.scalars(select(TradeFlow)).one()
         assert stored.quantity == Decimal("100")
@@ -34,6 +35,7 @@ class TestInsertNewRecords:
         assert run is not None
         assert run.status == "completed"
         assert run.inserted_count == 1
+        assert run.failed_count == 0
         assert run.source_hint == "eia"
 
     def test_inserts_multiple_distinct_keys_in_one_batch(self, db_session):

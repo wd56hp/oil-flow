@@ -22,6 +22,7 @@ audit history.
 
 **Atomicity** — The whole batch runs in a single database transaction. On any
 exception, the transaction rolls back (including the ``ingestion_runs`` row).
+``failed_count`` is reserved for future per-record failure handling; on success it is 0.
 
 **Cross-source reuse** — Any connector that outputs :class:`~app.schemas.trade_flow.TradeFlowRecord`
 can call :func:`ingest_trade_flow_records`; only the record contents vary.
