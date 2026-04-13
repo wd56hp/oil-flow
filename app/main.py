@@ -1,7 +1,16 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-app = FastAPI(title="Oil Flows Backend")
+from app.api.router import router
+from app.core.database import engine
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    engine.dispose()
+
+
+app = FastAPI(title="Oil Flows Backend", lifespan=lifespan)
+app.include_router(router)

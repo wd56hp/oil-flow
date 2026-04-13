@@ -1,0 +1,172 @@
+"""Crude oil imports from EIA v2 `crude-oil-imports` route — fetch + normalize to TradeFlowRecord."""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Mapping, Sequence
+from datetime import date, datetime, timezone
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
+from app.connectors.eia.client import EIAClient, build_query_params
+from app.connectors.eia.exceptions import EIAAPIError
+from app.core.config import get_settings
+from app.schemas.trade_flow import TradeFlowRecord
+
+logger = logging.getLogger(__name__)
+
+EIA_SOURCE = "eia"
+CRUDE_IMPORTS_DATASET = "crude-oil-imports"
+CRUDE_IMPORTS_DATA_ROUTE = "crude-oil-imports/data/"
+
+DEFAULT_DATA_FIELDS = ("quantity",)
+
+
+def get_eia_client(api_key: str | None = None) -> EIAClient:
+    key = api_key
+    if key is None:
+        key = get_settings().eia_api_key
+    if not key:
+        raise ValueError("EIA_API_KEY is not set in the environment")
+    return EIAClient(api_key=key)
+
+
+def fetch_crude_oil_imports(
+    *,
+    api_key: str | None = None,
+    frequency: str = "monthly",
+    data_fields: Sequence[str] = DEFAULT_DATA_FIELDS,
+    facets: Mapping[str, Sequence[str]] | None = None,
+    sort: Sequence[tuple[str, str]] | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    offset: int | None = None,
+    length: int | None = None,
+    paginate: bool = True,
+    client: EIAClient | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Fetch raw rows from `https://api.eia.gov/v2/crude-oil-imports/data/`.
+
+    When ``paginate`` is True and ``offset``/``length`` are not set, follows
+    offset/length pages until the dataset is exhausted (5000 rows per page max).
+
+    Parameters map directly to EIA query parameters (facets, frequency, start/end, etc.).
+    """
+    c = client or get_eia_client(api_key=api_key)
+
+    base = build_query_params(
+        api_key=c.api_key,
+        frequency=frequency,
+        data=list(data_fields),
+        facets=dict(facets) if facets else None,
+        sort=list(sort) if sort else None,
+        start=start,
+        end=end,
+        offset=None,
+        length=None,
+    )
+
+    if paginate and offset is None and length is None:
+        logger.info("Fetching all crude-oil-imports pages (paginated)")
+        return c.fetch_all_data_rows(CRUDE_IMPORTS_DATA_ROUTE, base_params=base)
+
+    if offset is not None:
+        base = list(base)
+        base.append(("offset", str(offset)))
+    if length is not None:
+        base = list(base)
+        base.append(("length", str(length)))
+
+    payload = c.get_json(CRUDE_IMPORTS_DATA_ROUTE, base)
+    rows = payload["response"].get("data") or []
+    if not isinstance(rows, list):
+        raise EIAAPIError("EIA crude-oil-imports response.response.data is not a list")
+    return rows
+
+
+def _period_to_date(period: str) -> date:
+    """EIA uses YYYY-MM for monthly crude imports."""
+    parts = period.strip().split("-")
+    if len(parts) >= 2:
+        y, m = int(parts[0]), int(parts[1])
+        return date(y, m, 1)
+    if len(parts) == 1:
+        return date(int(parts[0]), 1, 1)
+    raise ValueError(f"Unrecognized period format: {period!r}")
+
+
+def _partner_country_from_row(row: Mapping[str, Any]) -> str:
+    """Map EIA origin facet to a stable partner code (ISO2 when origin is a country)."""
+    origin_type = str(row.get("originType") or "")
+    origin_id = str(row.get("originId") or "")
+    if origin_type == "CTY" and origin_id.startswith("CTY_") and len(origin_id) > 4:
+        return origin_id[4:]
+    return origin_id
+
+
+def _commodity_code(row: Mapping[str, Any]) -> str:
+    grade = row.get("gradeId")
+    if grade:
+        return f"crude_oil:{grade}"
+    return "crude_oil"
+
+
+def _parse_quantity(row: Mapping[str, Any]) -> tuple[Decimal | None, str | None]:
+    raw = row.get("quantity")
+    if raw is None or raw == "":
+        return None, None
+    try:
+        return Decimal(str(raw)), row.get("quantity-units") or row.get("quantity_units")
+    except (InvalidOperation, ValueError):
+        logger.warning("Could not parse quantity from row keys=%s", row.keys())
+        return None, row.get("quantity-units")
+
+
+def normalize_crude_import_rows(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    observed_at: datetime | None = None,
+) -> list[TradeFlowRecord]:
+    """
+    Map EIA crude-oil-imports data rows to :class:`TradeFlowRecord`.
+
+    Reporter is the United States (imports into U.S. destinations); partner is the
+    country/region of origin derived from ``originId`` / ``originType``.
+    """
+    ts = observed_at or datetime.now(timezone.utc)
+    out: list[TradeFlowRecord] = []
+    for row in rows:
+        period = row.get("period")
+        if not period:
+            logger.warning("Skipping row without period: %s", row)
+            continue
+        try:
+            period_date = _period_to_date(str(period))
+        except ValueError as exc:
+            logger.warning("Skipping row with bad period %r: %s", period, exc)
+            continue
+
+        partner = _partner_country_from_row(row)
+        qty, unit = _parse_quantity(row)
+
+        out.append(
+            TradeFlowRecord(
+                source=EIA_SOURCE,
+                dataset=CRUDE_IMPORTS_DATASET,
+                period_date=period_date,
+                reporter_country="US",
+                partner_country=partner,
+                commodity=_commodity_code(row),
+                flow_direction="import",
+                observed_at=ts,
+                quantity=qty,
+                quantity_unit=unit,
+                eia_origin_id=str(row.get("originId")) if row.get("originId") is not None else None,
+                eia_destination_id=str(row.get("destinationId"))
+                if row.get("destinationId") is not None
+                else None,
+                eia_grade_id=str(row.get("gradeId")) if row.get("gradeId") is not None else None,
+            )
+        )
+    return out
