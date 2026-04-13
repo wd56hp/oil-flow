@@ -1,0 +1,3 @@
+# Keep this directory in git; ignore everything placed here (exports, scratch files).
+*
+!.gitignore
