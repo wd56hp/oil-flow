@@ -65,6 +65,41 @@ def test_run_fetch_eia_data_with_mock_fetch(monkeypatch, db_session):
     assert outcome.ok
     assert outcome.details["inserted"] == 1
     assert outcome.details["raw_row_count"] == 1
+    assert outcome.details["normalize_summary"]["normalized_out"] == 1
+    assert outcome.details["normalize_summary"]["dropped_non_country_origin"] == 0
+    agg = outcome.details["aggregation_summary"]
+    assert agg["normalized_out_before_aggregation"] == 1
+    assert agg["aggregated_out"] == 1
+    assert agg["groups_collapsed"] == 0
+    assert outcome.details["duplicate_business_keys"]["unique_business_keys"] == 1
+
+
+def test_run_fetch_eia_data_dry_run_does_not_open_db(monkeypatch):
+    def boom():
+        raise AssertionError("SessionLocal must not be used in dry_run")
+
+    monkeypatch.setattr("app.jobs.eia_fetch.SessionLocal", boom)
+    monkeypatch.setattr(
+        "app.jobs.eia_fetch.fetch_crude_oil_imports",
+        lambda **kwargs: [
+            {
+                "period": "2025-06",
+                "quantity": "50",
+                "originType": "CTY",
+                "originId": "CTY_CA",
+                "destinationId": "PP_1",
+                "gradeId": "LSW",
+            }
+        ],
+    )
+    from app.jobs.eia_fetch import run_fetch_eia_data
+
+    outcome = run_fetch_eia_data(paginate=False, dry_run=True)
+    assert outcome.ok
+    assert outcome.details["dry_run"] is True
+    assert "ingestion_run_id" not in outcome.details
+    assert outcome.details["aggregation_summary"]["aggregated_out"] == 1
+    assert outcome.details["duplicate_business_keys"]["normalized_row_count"] == 1
 
 
 def test_cli_run_quality_checks_invocation(monkeypatch, db_session):

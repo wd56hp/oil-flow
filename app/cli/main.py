@@ -65,11 +65,25 @@ def main() -> None:
     default=False,
     help="Single request only (no offset/length paging).",
 )
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Fetch + normalize + duplicate-key report only; do not write to the database.",
+)
+@click.option(
+    "--include-eia-aggregates",
+    is_flag=True,
+    default=False,
+    help="Include WORLD / REG_* / OPN_* (non-CTY) origin rows; default is country origins only.",
+)
 def fetch_eia_data_cmd(
     log_level: str,
     start: str | None,
     end: str | None,
     no_paginate: bool,
+    dry_run: bool,
+    include_eia_aggregates: bool,
 ) -> None:
     configure_cli_logging(log_level)
     from app.jobs.eia_fetch import run_fetch_eia_data
@@ -78,6 +92,8 @@ def fetch_eia_data_cmd(
         start=start,
         end=end,
         paginate=not no_paginate,
+        dry_run=dry_run,
+        country_origin_only=not include_eia_aggregates,
     )
     logger.info("job_result %s", json.dumps(outcome.details, default=str))
     _emit_json(outcome)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -21,13 +22,34 @@ CRUDE_IMPORTS_DATA_ROUTE = "crude-oil-imports/data/"
 
 DEFAULT_DATA_FIELDS = ("quantity",)
 
+
+@dataclass
+class CrudeImportNormalizeSummary:
+    """Filled when ``summary=`` is passed to :func:`normalize_crude_import_rows`."""
+
+    raw_input_rows: int = 0
+    skipped_no_period: int = 0
+    skipped_bad_period: int = 0
+    dropped_non_country_origin: int = 0
+    normalized_out: int = 0
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            "raw_input_rows": self.raw_input_rows,
+            "skipped_no_period": self.skipped_no_period,
+            "skipped_bad_period": self.skipped_bad_period,
+            "dropped_non_country_origin": self.dropped_non_country_origin,
+            "normalized_out": self.normalized_out,
+        }
+
+
 # Raw EIA rows: core keys + common v2 display/facet fields (avoids false raw_unexpected_column DQ).
 CRUDE_IMPORTS_EXPECTED_RAW_COLUMNS: frozenset[str] = frozenset(
     {
         "period",
         "quantity",
+        # EIA v2 uses hyphenated key; underscore variant is not sent on crude-imports.
         "quantity-units",
-        "quantity_units",
         "originId",
         "originType",
         "originName",
@@ -125,6 +147,18 @@ def _partner_country_from_row(row: Mapping[str, Any]) -> str:
     return origin_id
 
 
+def _is_eia_country_origin_row(row: Mapping[str, Any]) -> bool:
+    """
+    True when EIA marks the row as a country-level origin (``CTY`` + ``CTY_XX``).
+
+    Excludes WORLD, regional rollups (``REG_*``), open-species / other aggregates (``OPN_*``),
+    and any row without a proper country facet — reducing collisions on the canonical business key.
+    """
+    origin_type = str(row.get("originType") or "").strip().upper()
+    origin_id = str(row.get("originId") or "").strip()
+    return origin_type == "CTY" and origin_id.startswith("CTY_") and len(origin_id) > 4
+
+
 def _commodity_code(row: Mapping[str, Any]) -> str:
     grade = row.get("gradeId")
     if grade:
@@ -147,24 +181,45 @@ def normalize_crude_import_rows(
     rows: Sequence[Mapping[str, Any]],
     *,
     observed_at: datetime | None = None,
+    country_origin_only: bool = True,
+    summary: CrudeImportNormalizeSummary | None = None,
 ) -> list[TradeFlowRecord]:
     """
     Map EIA crude-oil-imports data rows to :class:`TradeFlowRecord`.
 
     Reporter is the United States (imports into U.S. destinations); partner is the
     country/region of origin derived from ``originId`` / ``originType``.
+
+    When ``country_origin_only`` is True (default), only rows with EIA facet ``CTY`` and
+    ``originId`` like ``CTY_XX`` are kept. That drops WORLD, ``REG_*``, ``OPN_*``, and other
+    aggregates that share the same canonical business key as country rows and inflate revisions.
+
+    **Note:** Destination disaggregation (``destinationId``) is not part of the business key; if
+    multiple ports remain for the same country/grade/month, duplicates can still occur within a batch.
     """
+    if summary is not None:
+        summary.raw_input_rows = len(rows)
+
     ts = observed_at or datetime.now(timezone.utc)
     out: list[TradeFlowRecord] = []
     for row in rows:
         period = row.get("period")
         if not period:
+            if summary is not None:
+                summary.skipped_no_period += 1
             logger.warning("Skipping row without period: %s", row)
             continue
         try:
             period_date = _period_to_date(str(period))
         except ValueError as exc:
+            if summary is not None:
+                summary.skipped_bad_period += 1
             logger.warning("Skipping row with bad period %r: %s", period, exc)
+            continue
+
+        if country_origin_only and not _is_eia_country_origin_row(row):
+            if summary is not None:
+                summary.dropped_non_country_origin += 1
             continue
 
         partner = _partner_country_from_row(row)
@@ -189,4 +244,6 @@ def normalize_crude_import_rows(
                 eia_grade_id=str(row.get("gradeId")) if row.get("gradeId") is not None else None,
             )
         )
+    if summary is not None:
+        summary.normalized_out = len(out)
     return out

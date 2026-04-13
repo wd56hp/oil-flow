@@ -1,6 +1,0 @@
-id,source,dataset,period_date,reporter_country,partner_country,commodity,flow_direction,quantity,quantity_unit,observed_at,eia_origin_id,eia_destination_id,eia_grade_id
-162,eia,crude-oil-imports,2025-08-01,US,SA,crude_oil:MED,import,8586.000000000000000000,thousand barrels,2026-04-13T12:43:36.038021+00:00,CTY_SA,US,MED
-98,eia,crude-oil-imports,2025-07-01,US,SA,crude_oil:HSO,import,295.000000000000000000,thousand barrels,2026-04-13T12:43:28.622580+00:00,CTY_SA,PP_3,HSO
-97,eia,crude-oil-imports,2025-07-01,US,SA,crude_oil:MED,import,8832.000000000000000000,thousand barrels,2026-04-13T12:43:28.622580+00:00,CTY_SA,US,MED
-31,eia,crude-oil-imports,2025-06-01,US,SA,crude_oil:HSO,import,400.000000000000000000,thousand barrels,2026-04-13T02:58:42.077230+00:00,CTY_SA,PP_3,HSO
-30,eia,crude-oil-imports,2025-06-01,US,SA,crude_oil:MED,import,8649.000000000000000000,thousand barrels,2026-04-13T12:43:21.191917+00:00,CTY_SA,US,MED
