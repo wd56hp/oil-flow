@@ -50,6 +50,7 @@ class IngestionStats:
     inserted: int
     revised: int
     unchanged: int
+    failed: int
 
 
 def _decimal_equal(a: Decimal | None, b: Decimal | None) -> bool:
@@ -117,6 +118,7 @@ def ingest_trade_flow_records(
         inserted_count=0,
         revised_count=0,
         unchanged_count=0,
+        failed_count=0,
         started_at=started,
     )
     session.add(run)
@@ -168,6 +170,7 @@ def ingest_trade_flow_records(
     run.inserted_count = inserted
     run.revised_count = revised
     run.unchanged_count = unchanged
+    run.failed_count = 0
 
     if commit:
         session.commit()
@@ -179,4 +182,5 @@ def ingest_trade_flow_records(
         inserted=inserted,
         revised=revised,
         unchanged=unchanged,
+        failed=0,
     )

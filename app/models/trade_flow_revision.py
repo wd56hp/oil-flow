@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -21,16 +21,16 @@ class TradeFlowRevision(Base):
 
     __tablename__ = "trade_flow_revisions"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     trade_flow_id: Mapped[int] = mapped_column(
-        BigInteger,
+        Integer,
         ForeignKey("trade_flows.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     ingestion_run_id: Mapped[int] = mapped_column(
-        BigInteger,
+        Integer,
         ForeignKey("ingestion_runs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

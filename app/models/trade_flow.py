@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Date, DateTime, Numeric, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -26,7 +26,7 @@ class TradeFlow(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     dataset: Mapped[str] = mapped_column(String(128), nullable=False)

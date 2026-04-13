@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Integer, String, Text
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -13,7 +13,7 @@ from app.models.base import Base
 class IngestionRun(Base):
     __tablename__ = "ingestion_runs"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     """running | completed | failed"""
@@ -24,6 +24,8 @@ class IngestionRun(Base):
     inserted_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     revised_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     unchanged_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    """Rows skipped due to per-record errors (when that mode is enabled); otherwise 0."""
 
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
