@@ -10,15 +10,20 @@ flow_direction)``. Lookups use the same columns.
 
 **What counts as “the value”** — Only **measures** participate in change detection:
 ``quantity`` and ``quantity_unit``. Same key + same measures → *unchanged* (skip).
-Connector-specific lineage fields (e.g. ``eia_origin_id``) are updated whenever we
-insert or revise so the canonical row reflects the latest payload; they do not by
-themselves trigger a revision if measures are equal.
 
-**Where rows live** — ``trade_flows`` holds **one current row per business key**.
-When measures change, we append a row to ``trade_flow_revisions`` capturing the
-**previous** measure snapshot, then update the canonical ``trade_flows`` row to the
-incoming measures. That keeps queries against ``trade_flows`` simple while preserving
-audit history.
+**Lineage fields (intentional behavior)** — Fields such as ``eia_origin_id``,
+``eia_destination_id``, and ``eia_grade_id`` do **not** by themselves trigger insert,
+revision, or in-place update. When a row is *unchanged* (measures match), the engine
+**skips** the row entirely, so the canonical ``trade_flows`` row **may keep older
+lineage values** if the upstream API changed destination/port metadata without
+changing quantity. That is a deliberate trade-off: revisions and canonical updates
+run only when **measures** change. On **insert** and **measure revision**, lineage
+is written from the incoming ``TradeFlowRecord``.
+
+**Where rows live** — This is **canonical current row + revision history**, not a
+single append-only facts table: ``trade_flows`` holds **one row per business key**
+(the latest measures we trust). When measures change, we append to
+``trade_flow_revisions`` (previous measures) and **update** that canonical row.
 
 **Atomicity** — The whole batch runs in a single database transaction. On any
 exception, the transaction rolls back (including the ``ingestion_runs`` row).

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.database import get_db
+from app.main import app
 from app.models import Base
 
 
@@ -41,3 +44,17 @@ def db_session(test_engine) -> Session:
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture
+def client(db_session: Session) -> TestClient:
+    """HTTP client with DB session wired to FastAPI ``get_db``."""
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
